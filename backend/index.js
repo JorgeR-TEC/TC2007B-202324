@@ -18,9 +18,6 @@ async function connectDB(){
 
 //getList, getMany, getManyReference
 app.get("/tickets", async (request, response)=>{
-    //console.log(request.get("Authentication"))
-    try{
-        //let test=jwt.verify(request.get("Authentication"), "secretKey")
         if ("_sort" in request.query){
             let sortBy=request.query._sort;
             let sortOrder=request.query._order=="ASC"?1:-1;
@@ -28,7 +25,6 @@ app.get("/tickets", async (request, response)=>{
             let end=Number(request.query._end);
             let sorter={}
             sorter[sortBy]=sortOrder
-            
             let data=await db.collection('tickets').find({}).sort(sorter).project({_id:0}).toArray();
             response.set('Access-Control-Expose-Headers', 'X-Total-Count')
             response.set('X-Total-Count', data.length)
@@ -48,24 +44,12 @@ app.get("/tickets", async (request, response)=>{
             response.set('X-Total-Count', data.length)
             response.json(data)
         }
-    }catch(err){
-        console.log(err);
-        response.sendStatus(401);
-    }
-   
 })
 
 //getOne
 app.get("/tickets/:id", async (request, response)=>{
-    try{
-        //let test=jwt.verify(request.get("Authentication"), "secretKey")
-        console.log(Number(request.params.id))
         let data=await db.collection('tickets').find({"id": Number(request.params.id)}).project({_id:0}).toArray();
         response.json(data[0]);
-    }catch(err){
-        console.log(err);
-        response.sendStatus(401);
-    }
 })
 
 
@@ -84,17 +68,14 @@ app.put("/tickets/:id", async (request, response)=>{
     let addValue=request.body
     addValue["id"]=Number(request.params.id);
     let data=await db.collection("tickets").updateOne({"id": addValue["id"]}, {"$set": addValue});
-    console.log(data)
     data=await db.collection('tickets').find({"id": Number(request.params.id)}).project({_id:0, id:1, nombre:1, materia:1}).toArray();
     response.json(data[0]);
 })       
 
 //delete
 app.delete("/test/:id", async (request, response)=>{
-console.log(request.params.id)
-let data=await db.collection('tickets').deleteOne({"id": Number(request.params.id)});
-console.log(data)
-response.json(data);
+    let data=await db.collection('tickets').deleteOne({"id": Number(request.params.id)});
+    response.json(data);
 })
 
 app.listen(1337, ()=>{

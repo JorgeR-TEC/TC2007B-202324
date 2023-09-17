@@ -10,9 +10,6 @@ const App = () =>{
   return(
       <Admin dataProvider={dataProvider}>
               <Resource name="tickets" list={TicketList} edit={TicketEdit} create={TicketCreate} />
-              <CustomRoutes>
-                <Route path="/nuevoticket" element={<NuevoTicket />}/>
-              </CustomRoutes>
       </Admin>
           
         
