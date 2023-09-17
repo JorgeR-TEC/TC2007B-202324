@@ -73,7 +73,7 @@ app.put("/tickets/:id", async (request, response)=>{
 })       
 
 //delete
-app.delete("/test/:id", async (request, response)=>{
+app.delete("/tickets/:id", async (request, response)=>{
     let data=await db.collection('tickets').deleteOne({"id": Number(request.params.id)});
     response.json(data);
 })
