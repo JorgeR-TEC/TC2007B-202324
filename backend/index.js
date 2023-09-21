@@ -2,6 +2,8 @@ const express=require('express')
 const MongoClient=require('mongodb').MongoClient
 var cors=require('cors')
 bodyParser=require('body-parser')
+const bcrypt=require("bcrypt")
+const jwt=require("jsonwebtoken")
 
 let db;
 const app=express();
@@ -71,6 +73,48 @@ app.put("/tickets/:id", async (request, response)=>{
     data=await db.collection('tickets').find({"id": Number(request.params.id)}).project({_id:0, id:1, nombre:1, materia:1}).toArray();
     response.json(data[0]);
 })       
+
+app.post("/registrarse", async(request, response)=>{
+    let user=request.body.username;
+    let pass=request.body.password;
+    let fname=request.body.fullName;
+    console.log(request.body)
+    let data= await db.collection("usuarios").findOne({"usuario": user});
+    if(data==null){
+        try{
+            bcrypt.genSalt(10, (error, salt)=>{
+                bcrypt.hash(pass, salt, async(error, hash)=>{
+                    let usuarioAgregar={"usuario": user, "password": hash, "fullName": fname};
+                    data= await db.collection("usuarios").insertOne(usuarioAgregar);
+                    response.sendStatus(201);
+                })
+            })
+        }catch{
+            response.sendStatus(401);
+        }
+    }else{
+        response.sendStatus(401)
+    }
+})
+
+
+app.post("/login", async(request, response)=>{
+    let user=request.body.username;
+    let pass=request.body.password;
+    let data= await db.collection("usuarios").findOne({"usuario": user});
+    if(data==null){
+        response.sendStatus(401);
+    }else{
+        bcrypt.compare(pass, data.password, (error, result)=>{
+            if(result){
+                let token=jwt.sign({usuario: data.usuario}, "secretKey", {expiresIn: 600});
+                response.json({"token": token, "id": data.usuario, "fullName": data.fullName})
+            }else{
+                response.sendStatus(401)
+            }
+        })
+    }
+})
 
 //delete
 app.delete("/tickets/:id", async (request, response)=>{
