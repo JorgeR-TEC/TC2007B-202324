@@ -18,8 +18,26 @@ async function connectDB(){
     console.log("conectado a la base de datos")
 }
 
+async function log(sujeto, accion, objeto){
+    toLog={}
+    toLog["timestamp"]=new Date();
+    toLog["sujeto"]=sujeto;
+    toLog["accion"]=accion;
+    toLog["objeto"]=objeto;
+    await db.collection("log").insertOne(toLog);
+}
+
 //getList, getMany, getManyReference
 app.get("/tickets", async (request, response)=>{
+    try{
+        let token=request.get("Authentication");
+        let verifiedToken = await jwt.verify(token, "secretKey");
+        let authData=await db.collection("usuarios").findOne({"usuario": verifiedToken.usuario})
+        let parametersFind={}
+        if(authData.permissions=="Coordinador"){
+            parametersFind["usuario"]=verifiedToken.usuario;
+        }
+        
         if ("_sort" in request.query){
             let sortBy=request.query._sort;
             let sortOrder=request.query._order=="ASC"?1:-1;
@@ -27,7 +45,7 @@ app.get("/tickets", async (request, response)=>{
             let end=Number(request.query._end);
             let sorter={}
             sorter[sortBy]=sortOrder
-            let data=await db.collection('tickets').find({}).sort(sorter).project({_id:0}).toArray();
+            let data=await db.collection('tickets').find(parametersFind).sort(sorter).project({_id:0}).toArray();
             response.set('Access-Control-Expose-Headers', 'X-Total-Count')
             response.set('X-Total-Count', data.length)
             data=data.slice(start, end)
@@ -46,32 +64,60 @@ app.get("/tickets", async (request, response)=>{
             response.set('X-Total-Count', data.length)
             response.json(data)
         }
+    }catch{
+        response.sendStatus(401);
+    }
 })
 
 //getOne
 app.get("/tickets/:id", async (request, response)=>{
-        let data=await db.collection('tickets').find({"id": Number(request.params.id)}).project({_id:0}).toArray();
+    try{
+        let token=request.get("Authentication");
+        let verifiedToken = await jwt.verify(token, "secretKey");
+        let authData=await db.collection("usuarios").findOne({"usuario": verifiedToken.usuario})
+        let parametersFind={"id": Number(request.params.id)}
+        if(authData.permissions=="Coordinador"){
+            parametersFind["usuario"]=verifiedToken.usuario;
+        }
+        let data=await db.collection('tickets').find(parametersFind).project({_id:0}).toArray();
+        log(verifiedToken.usuario, "ver objeto", request.params.id)
         response.json(data[0]);
+    }catch{
+        response.sendStatus(401);
+    }
 })
 
 
 //create
 app.post("/tickets", async (request, response)=>{
-    let addValue=request.body
-    let data=await db.collection('tickets').find({}).toArray();
-    let id=data.length+1;
-    addValue["id"]=id;
-    data=await db.collection('tickets').insertOne(addValue);
-    response.json(data);
+    try{
+        let token=request.get("Authentication");
+        let verifiedToken = await jwt.verify(token, "secretKey");
+        let addValue=request.body
+        let data=await db.collection('tickets').find({}).toArray();
+        let id=data.length+1;
+        addValue["id"]=id;
+        addValue["usuario"]=verifiedToken.usuario;
+        data=await db.collection('tickets').insertOne(addValue);
+        response.json(data);
+    }catch{
+        response.sendStatus(401);
+    }
 }) 
 
 //update
 app.put("/tickets/:id", async (request, response)=>{
-    let addValue=request.body
-    addValue["id"]=Number(request.params.id);
-    let data=await db.collection("tickets").updateOne({"id": addValue["id"]}, {"$set": addValue});
-    data=await db.collection('tickets').find({"id": Number(request.params.id)}).project({_id:0, id:1, nombre:1, materia:1}).toArray();
-    response.json(data[0]);
+    try{
+        let token=request.get("Authentication");
+        let verifiedToken = await jwt.verify(token, "secretKey");
+        let addValue=request.body
+        addValue["id"]=Number(request.params.id);
+        let data=await db.collection("tickets").updateOne({"id": addValue["id"]}, {"$set": addValue});
+        data=await db.collection('tickets').find({"id": Number(request.params.id)}).project({_id:0, id:1, nombre:1, materia:1}).toArray();
+        response.json(data[0]);
+    }catch{
+        response.sendStatus(401);
+    }
 })       
 
 app.post("/registrarse", async(request, response)=>{
@@ -108,6 +154,7 @@ app.post("/login", async(request, response)=>{
         bcrypt.compare(pass, data.password, (error, result)=>{
             if(result){
                 let token=jwt.sign({usuario: data.usuario}, "secretKey", {expiresIn: 600});
+                log(user, "login", "");
                 response.json({"token": token, "id": data.usuario, "fullName": data.fullName})
             }else{
                 response.sendStatus(401)
@@ -118,8 +165,14 @@ app.post("/login", async(request, response)=>{
 
 //delete
 app.delete("/tickets/:id", async (request, response)=>{
-    let data=await db.collection('tickets').deleteOne({"id": Number(request.params.id)});
-    response.json(data);
+    try{
+        let token=request.get("Authentication");
+        let verifiedToken = await jwt.verify(token, "secretKey");
+        let data=await db.collection('tickets').deleteOne({"id": Number(request.params.id)});
+        response.json(data);
+    }catch{
+        response.sendStatus(401);
+    }
 })
 
 app.listen(1337, ()=>{
